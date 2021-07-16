@@ -10,6 +10,8 @@ use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
+use tungstenite::handshake::server::{Request, Response};
+use tungstenite::http::StatusCode;
 
 type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
@@ -19,19 +21,34 @@ mod config;
 
 async fn handle_connection(peer_map: PeerMap,
                            raw_stream: TcpStream,
-                           addr: SocketAddr) {
+                           addr: SocketAddr,
+                           route: String) {
     println!("Incoming TCP connection from: {}", addr);
-
-    let ws_stream = tokio_tungstenite::accept_async(raw_stream)
-        .await
+    let callback =  |req: &Request, res: Response|{
+        if req.uri() != route.as_str() {
+            let resp = Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Some(
+                    "This is not the endpoint you're looking for".into()
+                ))
+                .unwrap();
+            Err(resp)
+        }
+        else {
+            Ok(res)
+        }
+    };
+    let ws_stream = tokio_tungstenite::accept_hdr_async(
+            raw_stream,
+            callback
+        ).await
         .expect("Error during the websocket handshake occurred");
-    println!("WebSocket connection established: {}", addr);
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
     peer_map.lock().unwrap().insert(addr, tx);
 
-    let (outgoing, incoming) = ws_stream.split();
+    let (outgoing,  incoming) = ws_stream.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
         println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
@@ -62,7 +79,7 @@ async fn main () -> Result<(), IoError> {
     let cfg = config::load()?;
     let host = cfg["websocket"]["host"].as_str().unwrap();
     let port = cfg["websocket"]["port"].as_i64().unwrap();
-    let route = cfg["websocket"]["route"].as_str().unwrap();
+    let route = cfg["websocket"]["route"].as_str().unwrap().to_owned();
     let bind_dest = format!("{}:{}", host, port);
     println!("Starting at {}", bind_dest);
 
@@ -75,7 +92,8 @@ async fn main () -> Result<(), IoError> {
 
     // Let's spawn the handling of each connection in a separate task.
     while let Ok((stream, addr)) = listener.accept().await {
-        tokio::spawn(handle_connection(state.clone(), stream, addr));
+        tokio::spawn(handle_connection(state.clone(), stream,
+                                       addr, route.clone()));
     }
 
     Ok(())
