@@ -12,7 +12,7 @@ fn read_config(filename: &str) -> io::Result<String> {
     for line in s.split('\n') {
         if !line.trim().starts_with("//") {
             ret_val.push_str(line);
-            ret_val.push_str("\n");
+            ret_val.push('\n');
         }
     }
     Ok(ret_val)
