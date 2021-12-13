@@ -3,6 +3,7 @@ use std::{
     io::Error as IoError,
     net::SocketAddr,
     sync::{Arc, Mutex},
+    path::Path,
 };
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
@@ -12,11 +13,11 @@ use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
 use tungstenite::handshake::server::{Request, Response};
 use tungstenite::http::StatusCode;
+use rustcroft::config;
 
 type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
-mod config;
 
 
 async fn handle_connection(peer_map: PeerMap,
@@ -51,8 +52,8 @@ async fn handle_connection(peer_map: PeerMap,
     let (outgoing,  incoming) = ws_stream.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        println!("Received a message from {}: {}",
-                 addr, msg.to_text().unwrap());
+        //println!("Received a message from {}: {}",
+        //         addr, msg.to_text().unwrap());
         if msg.is_text() || msg.is_binary() {
 
             let peers = peer_map.lock().unwrap();
@@ -80,7 +81,7 @@ async fn handle_connection(peer_map: PeerMap,
 
 #[tokio::main]
 async fn main () -> Result<(), IoError> {
-    let cfg = config::load()?;
+    let cfg = config::load(Path::new("./mycroft.conf"))?;
     let host = cfg["websocket"]["host"].as_str().unwrap();
     let port = cfg["websocket"]["port"].as_i64().unwrap();
     let route = cfg["websocket"]["route"].as_str().unwrap().to_owned();

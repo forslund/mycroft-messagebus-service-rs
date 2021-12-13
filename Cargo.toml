@@ -13,3 +13,5 @@ tokio-tungstenite = "*"
 tungstenite = "*"
 futures-channel = "*"
 futures-util = "*"
+
+rustcroft = {git = "https://github.com/forslund/rustcroft", branch = "main"}
