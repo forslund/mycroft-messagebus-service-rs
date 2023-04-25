@@ -7,6 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+log = "0.4.17"
+simple_logger = "4.1.0"
 serde_json = "1.0.64"
 tokio = { version = "1.8.0", features = ["full"] }
 tokio-tungstenite = "*"
@@ -14,4 +16,5 @@ tungstenite = "*"
 futures-channel = "*"
 futures-util = "*"
 
-rustcroft = {git = "https://github.com/forslund/rustcroft", branch = "main"}
+#rustcroft = {git = "https://github.com/forslund/rustcroft", branch = "main"}
+rustcroft = {path = "../rustcroft", version="*"}
