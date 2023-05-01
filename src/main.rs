@@ -5,8 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use log::{info,debug};
-use simple_logger;
+use simple_logger::SimpleLogger;
 
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
@@ -15,7 +14,9 @@ use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
 use tungstenite::handshake::server::{Request, Response};
 use tungstenite::http::StatusCode;
+
 use rustcroft::config;
+use log::{info, trace, LevelFilter};
 
 type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
@@ -54,7 +55,7 @@ async fn handle_connection(peer_map: PeerMap,
     let (outgoing,  incoming) = ws_stream.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        debug!("Received a message from {}: {}",
+        trace!("Received a message from {}: {}",
                  addr, msg.to_text().unwrap());
         if msg.is_text() || msg.is_binary() {
 
@@ -83,7 +84,7 @@ async fn handle_connection(peer_map: PeerMap,
 
 #[tokio::main]
 async fn main () -> Result<(), IoError> {
-    simple_logger::init_with_env().unwrap();
+    SimpleLogger::new().with_level(LevelFilter::Info).env().init().unwrap();
 
     let cfg = config::ConfigStack::from_default().unwrap();
     let val = cfg.get(&["websocket", "host"]).unwrap();
